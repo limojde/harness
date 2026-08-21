@@ -1,0 +1,44 @@
+# Toolchain for the Limoj CI harness image.
+#
+# This is the union of what the Limoj repos need in CI, plus the two agent
+# CLIs. It deliberately does NOT include the cluster-provisioning tools from
+# platform/mise.toml (kind, talosctl, packer, opentofu, hcloud) — those are for
+# operators on a laptop, not for jobs on a runner, and they add ~400MB.
+#
+# Keep versions pinned to match the source repos. When platform/mise.toml moves
+# go or kubectl, move it here in the same PR or CI drifts from local.
+
+[tools]
+# --- Agent CLIs ---------------------------------------------------------
+claude = "latest"
+opencode = "latest"
+
+# --- Languages ----------------------------------------------------------
+# go: platform/tenant-controller
+go = "1.26.5"
+# bun: portal, portal-next, proxy
+bun = "latest"
+# python + uv: agent
+python = "3.14"
+uv = "latest"
+# ruby: customers
+ruby = "4"
+
+# --- Kubernetes / GitOps ------------------------------------------------
+flux2 = "latest"
+helm = "latest"
+kube-controller-tools = "0.21.0"
+kubeconform = "0.8.0"
+kubectl = "1.34.10"
+kustomize = "5.8.1"
+"aqua:kubernetes-sigs/controller-runtime/setup-envtest" = "0.22.5"
+
+# --- Secrets ------------------------------------------------------------
+age = "latest"
+sops = "latest"
+
+# --- Registry / images --------------------------------------------------
+# docker-cli talks to the ARC dind sidecar over DOCKER_HOST.
+docker-cli = "latest"
+crane = "latest"
+regctl = "latest"

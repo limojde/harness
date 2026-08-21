@@ -1,0 +1,66 @@
+name: build-image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - Containerfile
+      - mise.toml
+      - .github/workflows/build-image.yaml
+  pull_request:
+    paths:
+      - Containerfile
+      - mise.toml
+  workflow_dispatch:
+
+concurrency:
+  group: build-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # Self-hosted ARC scale set. See the bootstrap note in README.md: the very
+    # first image cannot be built here, because this runner IS this image.
+    runs-on: limoj-k8s
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Containerfile
+          # Push only from main; PRs build to verify the Containerfile still
+          # resolves without publishing a tag anyone could pull.
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: |
+            ghcr.io/limojde/harness:latest
+            ghcr.io/limojde/harness:${{ github.sha }}
+          cache-from: type=registry,ref=ghcr.io/limojde/harness:buildcache
+          cache-to: type=registry,ref=ghcr.io/limojde/harness:buildcache,mode=max
+
+      - name: Report digest
+        if: steps.build.outputs.digest != ''
+        run: |
+          echo "### harness image" >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Pin this digest in `platform` before rolling the scale set:' >> "$GITHUB_STEP_SUMMARY"
+          echo '' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "ghcr.io/limojde/harness@${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
